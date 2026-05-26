@@ -1,3 +1,5 @@
+Forked autoskills to add some customizations and can be used at my [aidlc-factory](https://github.com/Mbg999/aidlc-factory) 
+
 <div align="center">
 
 <a href="https://autoskills.sh">
