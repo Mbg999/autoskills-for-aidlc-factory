@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import { ok, strictEqual, deepStrictEqual, throws } from "node:assert/strict";
 import { collectSkills, detectTechnologies, getInstalledSkillNames } from "../lib.ts";
+import type { Technology } from "../lib.ts";
 import { multiSelect } from "../ui.ts";
 import { useTmpDir, writeJson, writeFile, writePackageJson } from "./helpers.ts";
 
@@ -304,6 +305,20 @@ describe("collectSkills", () => {
       skills.find((s) => s.skill === "anthropics/skills/frontend-design")!.installed,
       true,
     );
+  });
+
+  it("does not artificially limit the number of skills", () => {
+    const detected: Technology[] = [];
+    for (let i = 0; i < 15; i++) {
+      detected.push({
+        id: `tech-${i}`,
+        name: `Tech ${i}`,
+        detect: {},
+        skills: [`repo/skills/skill-${i}-a`, `repo/skills/skill-${i}-b`],
+      });
+    }
+    const skills = collectSkills({ detected, isFrontend: false });
+    strictEqual(skills.length, 30);
   });
 });
 

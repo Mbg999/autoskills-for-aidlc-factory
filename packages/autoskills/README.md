@@ -188,6 +188,8 @@ When multiple technologies are used together, `autoskills` detects **technology 
 
 The detection runs entirely locally with zero network requests until installation begins.
 
+It also performs a heuristic recursive scan for nested package manifests (e.g. `packages/*/package.json`, `apps/*/Cargo.toml`) even when no workspace configuration is present, so monorepos and hybrid repos are covered out of the box.
+
 ## Requirements
 
 - Node.js >= 22.0.0

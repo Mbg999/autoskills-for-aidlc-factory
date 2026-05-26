@@ -1268,6 +1268,31 @@ plugins {
     ok(terraform.skills.includes("hashicorp/agent-skills/terraform-stacks"));
     ok(terraform.skills.includes("wshobson/agents/terraform-module-library"));
   });
+
+  it("detects nested packages without explicit workspace config", () => {
+    writePackageJson(tmp.path);
+    writeJson(tmp.path, "packages/app1/package.json", { dependencies: { react: "^19" } });
+    writeJson(tmp.path, "packages/app2/package.json", { dependencies: { express: "^4" } });
+    const { detected } = detectTechnologies(tmp.path);
+    ok(detected.some((t) => t.id === "react"));
+    ok(detected.some((t) => t.id === "express"));
+  });
+
+  it("detects nested packages at multiple depth levels", () => {
+    writePackageJson(tmp.path);
+    writeJson(tmp.path, "apps/web/package.json", { dependencies: { next: "^15" } });
+    writeJson(tmp.path, "services/api/package.json", { dependencies: { hono: "^4" } });
+    const { detected } = detectTechnologies(tmp.path);
+    ok(detected.some((t) => t.id === "nextjs"));
+    ok(detected.some((t) => t.id === "hono"));
+  });
+
+  it("skips node_modules when scanning heuristically", () => {
+    writePackageJson(tmp.path);
+    writeJson(tmp.path, "node_modules/some-pkg/package.json", { dependencies: { react: "^19" } });
+    const { detected } = detectTechnologies(tmp.path);
+    ok(!detected.some((t) => t.id === "react"));
+  });
 });
 
 // ── readDenoJson ──────────────────────────────────────────────
