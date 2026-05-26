@@ -2,10 +2,23 @@ import { describe, it } from "node:test";
 import { ok } from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { useTmpDir, writePackageJson, writeFile, writeJson, addWorkspace } from "./helpers.ts";
 
-const CLI_PATH = resolve(import.meta.dirname!, "..", "index.mjs");
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function findCliPath(): string {
+  let dir = __dirname;
+  for (let i = 0; i < 3; i++) {
+    const candidate = resolve(dir, "index.mjs");
+    if (existsSync(candidate)) return candidate;
+    dir = dirname(dir);
+  }
+  throw new Error("index.mjs not found");
+}
+
+const CLI_PATH = findCliPath();
 
 function run(args: string[] = [], cwd: string = process.cwd()): string {
   return execFileSync(process.execPath, [CLI_PATH, ...args], {
@@ -474,6 +487,44 @@ describe("CLI", () => {
       const output = run(["--dry-run", "-a", "cursor"], tmp.path);
       ok(output.includes("Agents: cursor"));
       ok(!output.includes("universal"));
+    });
+  });
+
+  describe("--tech", () => {
+    const tmp = useTmpDir();
+
+    it("forces specific technology and skips auto-detection", () => {
+      writePackageJson(tmp.path);
+      const output = run(["--dry-run", "--tech", "react"], tmp.path);
+      ok(output.includes("React"));
+      ok(!output.includes("No supported technologies"));
+    });
+
+    it("supports multiple --tech flags", () => {
+      writePackageJson(tmp.path);
+      const output = run(["--dry-run", "--tech", "react", "--tech", "nextjs"], tmp.path);
+      ok(output.includes("React"));
+      ok(output.includes("Next.js"));
+    });
+
+    it("supports comma-separated technologies", () => {
+      writePackageJson(tmp.path);
+      const output = run(["--dry-run", "--tech", "react,nextjs"], tmp.path);
+      ok(output.includes("React"));
+      ok(output.includes("Next.js"));
+    });
+
+    it("warns about unknown technologies", () => {
+      writePackageJson(tmp.path);
+      const output = run(["--dry-run", "--tech", "unknown-tech"], tmp.path);
+      ok(output.includes("Unknown technology"));
+    });
+
+    it("combines --tech with -y", () => {
+      writePackageJson(tmp.path);
+      const output = run(["--dry-run", "--tech", "react", "-y"], tmp.path);
+      ok(output.includes("React"));
+      ok(output.includes("Skills to install"));
     });
   });
 });

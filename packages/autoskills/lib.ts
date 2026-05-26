@@ -557,6 +557,72 @@ export interface DetectResult {
   combos: ComboSkill[];
 }
 
+// ── Heuristic Package Discovery ─────────────────────────────
+
+const PACKAGE_MANIFESTS = [
+  "package.json",
+  "pubspec.yaml",
+  "Cargo.toml",
+  "go.mod",
+  "pyproject.toml",
+  "requirements.txt",
+  "setup.py",
+  "Pipfile",
+  "Gemfile",
+  "build.gradle",
+  "build.gradle.kts",
+  "pom.xml",
+  "deno.json",
+  "deno.jsonc",
+  "bun.lockb",
+  "bun.lock",
+  "bunfig.toml",
+  "composer.json",
+];
+
+const _discoverCache = new Map<string, string[]>();
+
+export function discoverPackageDirs(projectDir: string, maxDepth: number = 4): string[] {
+  const cached = _discoverCache.get(projectDir);
+  if (cached) return cached;
+
+  const found = new Set<string>();
+  const resolvedRoot = resolve(projectDir);
+
+  function scan(dir: string, depth: number): void {
+    if (depth > maxDepth) return;
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    let hasManifest = false;
+    for (const entry of entries) {
+      if (entry.isFile() && PACKAGE_MANIFESTS.includes(entry.name)) {
+        hasManifest = true;
+        break;
+      }
+    }
+
+    if (hasManifest && resolve(dir) !== resolvedRoot) {
+      found.add(dir);
+    }
+
+    for (const entry of entries) {
+      if (entry.isDirectory() && !entry.name.startsWith(".") && !SCAN_SKIP_DIRS.has(entry.name)) {
+        scan(join(dir, entry.name), depth + 1);
+      }
+    }
+  }
+
+  scan(projectDir, 0);
+  const result = [...found];
+  _discoverCache.set(projectDir, result);
+  return result;
+}
+
 export function detectTechnologies(projectDir: string): DetectResult {
   const pkg = readPackageJson(projectDir);
   const denoJson = readDenoJson(projectDir);
@@ -565,7 +631,14 @@ export function detectTechnologies(projectDir: string): DetectResult {
   let isFrontend = root.isFrontendByPackages || root.isFrontendByFiles;
 
   const workspaceDirs = resolveWorkspaces(projectDir, { pkg, denoJson });
-  for (const wsDir of workspaceDirs) {
+  const heuristicDirs = discoverPackageDirs(projectDir);
+
+  const allDirs = new Set<string>();
+  for (const d of workspaceDirs) allDirs.add(resolve(d));
+  for (const d of heuristicDirs) allDirs.add(resolve(d));
+  allDirs.delete(resolve(projectDir));
+
+  for (const wsDir of allDirs) {
     const ws = detectTechnologiesInDir(wsDir, { skipFrontendFiles: isFrontend });
 
     for (const tech of ws.detected) {

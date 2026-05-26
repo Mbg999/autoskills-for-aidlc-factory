@@ -36,6 +36,15 @@ npx autoskills -y
 npx autoskills --dry-run
 ```
 
+### Force specific technologies
+
+Skip auto-detection and install skills for the technologies you specify:
+
+```bash
+npx autoskills --tech react --tech nextjs
+npx autoskills --tech react,nextjs,tailwind
+```
+
 ### Claude Code summary
 
 If `claude-code` is auto-detected or passed with `-a`, `autoskills` writes a `CLAUDE.md` file in your project root summarizing the markdown files installed under `.claude/skills`.
@@ -47,6 +56,7 @@ If `claude-code` is auto-detected or passed with `-a`, `autoskills` writes a `CL
 | `-y`, `--yes`     | Skip confirmation prompt, install all detected skills |
 | `--dry-run`       | Show detected skills without installing anything      |
 | `-v`, `--verbose` | Show install trace and error details                  |
+| `-t`, `--tech`    | Force specific technologies (skip auto-detect)        |
 | `-h`, `--help`    | Show help message                                     |
 
 ## Supported Technologies
@@ -177,6 +187,8 @@ When multiple technologies are used together, `autoskills` detects **technology 
 `autoskills` uses [skills.sh](https://skills.sh) under the hood — the open skill registry for AI coding agents. Skills are markdown files that teach AI assistants how to work with specific technologies, following best practices and patterns from the official maintainers.
 
 The detection runs entirely locally with zero network requests until installation begins.
+
+It also performs a heuristic recursive scan for nested package manifests (e.g. `packages/*/package.json`, `apps/*/Cargo.toml`) even when no workspace configuration is present, so monorepos and hybrid repos are covered out of the box.
 
 ## Requirements
 
