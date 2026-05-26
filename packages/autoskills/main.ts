@@ -2,7 +2,15 @@ import { resolve, dirname, join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { detectTechnologies, collectSkills, detectAgents, getInstalledSkillNames } from "./lib.ts";
+import {
+  detectTechnologies,
+  collectSkills,
+  detectAgents,
+  getInstalledSkillNames,
+  SKILLS_MAP,
+  FRONTEND_PACKAGES,
+  detectCombos,
+} from "./lib.ts";
 import type { SkillEntry, Technology, ComboSkill } from "./lib.ts";
 import {
   log,
@@ -57,6 +65,7 @@ interface CliArgs {
   help: boolean;
   clearCache: boolean;
   agents: string[];
+  technologies: string[];
 }
 
 function parseArgs(): CliArgs {
@@ -69,6 +78,21 @@ function parseArgs(): CliArgs {
       agents.push(args[i]);
     }
   }
+
+  const technologies: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "-t" || args[i] === "--tech") {
+      const val = args[i + 1];
+      if (val && !val.startsWith("-")) {
+        for (const v of val.split(",")) {
+          const trimmed = v.trim();
+          if (trimmed) technologies.push(trimmed);
+        }
+        i++;
+      }
+    }
+  }
+
   return {
     autoYes: args.includes("-y") || args.includes("--yes"),
     dryRun: args.includes("--dry-run"),
@@ -76,6 +100,7 @@ function parseArgs(): CliArgs {
     help: args.includes("--help") || args.includes("-h"),
     clearCache: args.includes("--clear-cache"),
     agents,
+    technologies,
   };
 }
 
@@ -89,6 +114,7 @@ function showHelp(): void {
     npx autoskills ${dim("--dry-run")}            Show what would be installed
     npx autoskills ${dim("--clear-cache")}        Clear downloaded skills cache
     npx autoskills ${dim("-a cursor claude-code")} Install for specific IDEs only
+    npx autoskills ${dim("-t react nextjs")}     Force specific technologies
 
   ${bold("Options:")}
     -y, --yes       Skip confirmation prompt
@@ -96,6 +122,7 @@ function showHelp(): void {
     --clear-cache   Clear downloaded skills cache
     -v, --verbose   Show install trace and error details
     -a, --agent     Install for specific IDEs only (e.g. cursor, claude-code)
+    -t, --tech      Force specific technologies (skip auto-detect)
     -h, --help      Show this help message
 `);
 }
@@ -500,7 +527,7 @@ async function selectSkills(skills: SkillEntry[], autoYes: boolean): Promise<Ski
 // ── Main ─────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const { autoYes, dryRun, verbose, help, clearCache, agents } = parseArgs();
+  const { autoYes, dryRun, verbose, help, clearCache, agents, technologies } = parseArgs();
 
   if (help) {
     showHelp();
@@ -522,9 +549,33 @@ async function main(): Promise<void> {
 
   const projectDir = resolve(".");
 
-  write(dim("   Scanning project...\r"));
-  const { detected, isFrontend, combos } = detectTechnologies(projectDir);
-  write("\x1b[K");
+  let detected: Technology[];
+  let isFrontend: boolean;
+  let combos: ComboSkill[];
+
+  if (technologies.length > 0) {
+    const validIds = new Set(SKILLS_MAP.map((t) => t.id));
+    const forcedIds = new Set<string>();
+    for (const id of technologies) {
+      if (validIds.has(id)) {
+        forcedIds.add(id);
+      } else {
+        log(yellow(`   ⚠ Unknown technology "${id}" — skipping.`));
+      }
+    }
+
+    detected = SKILLS_MAP.filter((t) => forcedIds.has(t.id));
+    isFrontend = detected.some((t) => FRONTEND_PACKAGES.has(t.id));
+    const detectedIds = detected.map((t) => t.id);
+    combos = detectCombos(detectedIds);
+  } else {
+    write(dim("   Scanning project...\r"));
+    const result = detectTechnologies(projectDir);
+    write("\x1b[K");
+    detected = result.detected;
+    isFrontend = result.isFrontend;
+    combos = result.combos;
+  }
 
   if (detected.length === 0 && !isFrontend) {
     log(yellow("   ⚠ No supported technologies detected."));
