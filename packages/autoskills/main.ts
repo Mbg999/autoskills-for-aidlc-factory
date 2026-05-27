@@ -64,6 +64,7 @@ interface CliArgs {
   verbose: boolean;
   help: boolean;
   clearCache: boolean;
+  listTech: boolean;
   agents: string[];
   technologies: string[];
   projectDir: string | null;
@@ -111,6 +112,7 @@ function parseArgs(): CliArgs {
     verbose: args.includes("--verbose") || args.includes("-v"),
     help: args.includes("--help") || args.includes("-h"),
     clearCache: args.includes("--clear-cache"),
+    listTech: args.includes("--list-tech"),
     agents,
     technologies,
     projectDir,
@@ -129,6 +131,7 @@ function showHelp(): void {
     npx autoskills ${dim("-a cursor claude-code")} Install for specific IDEs only
     npx autoskills ${dim("-t react nextjs")}     Force specific technologies
     npx autoskills ${dim("-p ./my-project")}     Install skills in custom path
+    npx autoskills ${dim("--list-tech")}         List supported technologies
 
   ${bold("Options:")}
     -y, --yes       Skip confirmation prompt
@@ -138,8 +141,28 @@ function showHelp(): void {
     -a, --agent     Install for specific IDEs only (e.g. cursor, claude-code)
     -t, --tech      Force specific technologies (skip auto-detect)
     -p, --path      Install skills in a custom project directory
+    --list-tech     List all supported technologies and their IDs
     -h, --help      Show this help message
 `);
+}
+
+function showTechList(): void {
+  const unique = [...new Map(SKILLS_MAP.map((t) => [t.id, t])).values()];
+  const sorted = [...unique].sort((a, b) => a.id.localeCompare(b.id));
+
+  const totalSkills = sorted.reduce((sum, t) => sum + t.skills.length, 0);
+  log(cyan("   ◆ ") + bold(`Supported technologies (${sorted.length}, ${totalSkills} skills):`));
+  log();
+
+  for (const tech of sorted) {
+    const skills = tech.skills.length;
+    const label = skills > 0 ? dim(`${skills}`) : dim("-");
+    log(`     ${green(tech.id)}  ${label}`);
+  }
+
+  log();
+  log(dim("   Use -t, --tech <id> to force a specific technology."));
+  log();
 }
 
 // ── Display ──────────────────────────────────────────────────
@@ -542,7 +565,7 @@ async function selectSkills(skills: SkillEntry[], autoYes: boolean): Promise<Ski
 // ── Main ─────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const { autoYes, dryRun, verbose, help, clearCache, agents, technologies, projectDir: customProjectDir } = parseArgs();
+  const { autoYes, dryRun, verbose, help, clearCache, listTech, agents, technologies, projectDir: customProjectDir } = parseArgs();
 
   if (help) {
     showHelp();
@@ -557,6 +580,12 @@ async function main(): Promise<void> {
         : dim(`   No autoskills cache found: ${cacheDir}`),
     );
     log();
+    process.exit(0);
+  }
+
+  if (listTech) {
+    await printBanner(VERSION);
+    showTechList();
     process.exit(0);
   }
 

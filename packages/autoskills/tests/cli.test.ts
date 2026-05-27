@@ -528,6 +528,24 @@ describe("CLI", () => {
     });
   });
 
+  describe("--list-tech", () => {
+    const tmp = useTmpDir();
+
+    it("lists all supported technologies", () => {
+      const output = run(["--list-tech"], tmp.path);
+      ok(output.includes("Supported technologies"));
+      ok(output.includes("react"));
+      ok(output.includes("nextjs"));
+      ok(output.includes("tailwind"));
+      ok(output.includes("typescript"));
+    });
+
+    it("includes skill counts in output", () => {
+      const output = run(["--list-tech"], tmp.path);
+      ok(output.includes("skills") || output.includes("no skills"));
+    });
+  });
+
   describe("--path", () => {
     const tmp = useTmpDir();
 
