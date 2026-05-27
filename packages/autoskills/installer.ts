@@ -526,39 +526,14 @@ export async function installSkill(
     return fail(`download failed: ${(err as Error).message}`);
   }
 
-  const uniqueFolders = new Set<string>();
-  for (const agent of agents) {
-    if (agent === "universal") continue;
-    const folder = agentFolderFor(agent);
-    if (folder) uniqueFolders.add(folder);
-  }
-
-  const symlinkErrors: string[] = [];
-  for (const folder of uniqueFolders) {
-    const linkPath = join(projectDir, folder, "skills", skillName);
-    try {
-      ensureSymlinkTo(canonicalDir, linkPath);
-      opts.onTrace?.(`linked ${linkPath} -> ${canonicalDir}`);
-    } catch (err) {
-      symlinkErrors.push(`${folder}: ${(err as Error).message}`);
-    }
-  }
+  // Agent symlinks are handled centrally by factory_skill_sync.py's
+  // _consolidate_skills — skip them here to avoid duplication.
 
   try {
     updateSkillsLock(projectDir, skillName, entry);
     opts.onTrace?.(`updated lockfile: ${join(projectDir, "skills-lock.json")}`);
   } catch (err) {
     return fail(`lockfile update failed: ${(err as Error).message}`);
-  }
-
-  if (symlinkErrors.length > 0) {
-    return {
-      success: false,
-      output: symlinkErrors.join("\n"),
-      stderr: symlinkErrors.join("\n"),
-      exitCode: 1,
-      command,
-    };
   }
 
   return {
