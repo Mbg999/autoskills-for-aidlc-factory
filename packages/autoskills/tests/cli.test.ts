@@ -527,4 +527,38 @@ describe("CLI", () => {
       ok(output.includes("Skills to install"));
     });
   });
+
+  describe("--path", () => {
+    const tmp = useTmpDir();
+
+    it("installs skills in the specified path with --dry-run", () => {
+      writePackageJson(tmp.path, {
+        dependencies: { react: "^19" },
+      });
+      const customDir = join(tmp.path, "custom-project");
+      writePackageJson(customDir, {
+        dependencies: { react: "^19" },
+      });
+
+      const output = run(["--dry-run", "--path", customDir], tmp.path);
+      ok(output.includes("React"));
+    });
+
+    it("works with -p shorthand", () => {
+      writePackageJson(tmp.path);
+      const customDir = join(tmp.path, "another-project");
+      writePackageJson(customDir, {
+        dependencies: { react: "^19" },
+      });
+
+      const output = run(["--dry-run", "-p", customDir], tmp.path);
+      ok(output.includes("React"));
+    });
+
+    it("shows help with --path option mentioned", () => {
+      const output = run(["--help"]);
+      ok(output.includes("--path"));
+      ok(output.includes("-p"));
+    });
+  });
 });

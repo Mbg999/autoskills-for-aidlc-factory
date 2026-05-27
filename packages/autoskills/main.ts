@@ -66,6 +66,7 @@ interface CliArgs {
   clearCache: boolean;
   agents: string[];
   technologies: string[];
+  projectDir: string | null;
 }
 
 function parseArgs(): CliArgs {
@@ -93,6 +94,17 @@ function parseArgs(): CliArgs {
     }
   }
 
+  let projectDir: string | null = null;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "-p" || args[i] === "--path") {
+      const val = args[i + 1];
+      if (val && !val.startsWith("-")) {
+        projectDir = resolve(val);
+        i++;
+      }
+    }
+  }
+
   return {
     autoYes: args.includes("-y") || args.includes("--yes"),
     dryRun: args.includes("--dry-run"),
@@ -101,6 +113,7 @@ function parseArgs(): CliArgs {
     clearCache: args.includes("--clear-cache"),
     agents,
     technologies,
+    projectDir,
   };
 }
 
@@ -115,6 +128,7 @@ function showHelp(): void {
     npx autoskills ${dim("--clear-cache")}        Clear downloaded skills cache
     npx autoskills ${dim("-a cursor claude-code")} Install for specific IDEs only
     npx autoskills ${dim("-t react nextjs")}     Force specific technologies
+    npx autoskills ${dim("-p ./my-project")}     Install skills in custom path
 
   ${bold("Options:")}
     -y, --yes       Skip confirmation prompt
@@ -123,6 +137,7 @@ function showHelp(): void {
     -v, --verbose   Show install trace and error details
     -a, --agent     Install for specific IDEs only (e.g. cursor, claude-code)
     -t, --tech      Force specific technologies (skip auto-detect)
+    -p, --path      Install skills in a custom project directory
     -h, --help      Show this help message
 `);
 }
@@ -527,7 +542,7 @@ async function selectSkills(skills: SkillEntry[], autoYes: boolean): Promise<Ski
 // ── Main ─────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const { autoYes, dryRun, verbose, help, clearCache, agents, technologies } = parseArgs();
+  const { autoYes, dryRun, verbose, help, clearCache, agents, technologies, projectDir: customProjectDir } = parseArgs();
 
   if (help) {
     showHelp();
@@ -547,7 +562,7 @@ async function main(): Promise<void> {
 
   await printBanner(VERSION);
 
-  const projectDir = resolve(".");
+  const projectDir = customProjectDir || resolve(".");
 
   let detected: Technology[];
   let isFrontend: boolean;
@@ -623,6 +638,7 @@ async function main(): Promise<void> {
     resolvedAgents,
     {
       verbose,
+      projectDir,
     },
   );
   const elapsed = Date.now() - startTime;

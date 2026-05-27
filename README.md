@@ -43,6 +43,7 @@ This keeps the package small while avoiding live downloads from third-party skil
 -y, --yes       Skip confirmation prompt
 --dry-run       Show what would be installed without installing
 -t, --tech      Force specific technologies (skip auto-detect)
+-p, --path      Install skills in a custom project directory
 -h, --help      Show help message
 ```
 
